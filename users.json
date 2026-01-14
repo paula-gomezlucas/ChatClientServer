@@ -1,0 +1,19 @@
+{
+  "users": {
+    "paula": {
+      "salt": "JAiry5G1xMUKI+b97hIW2g==",
+      "hash": "tQ82lrdsQygz34ZCDFkB4R2z2FTC3nzrr+hLPxBkqOE=",
+      "iterations": 200000
+    },
+    "lucia": {
+      "salt": "V1MCpYzdXvZ/B3H3pwWrcw==",
+      "hash": "H4ExxSgL6BRYPEgHRuHYmxvgjcEGzUtXJlL0gIexvB8=",
+      "iterations": 200000
+    },
+    "roberto": {
+      "salt": "MbQxqZOE+GLdQycPWC6xCw==",
+      "hash": "44i0uMNna/gVPrtBFjvG5wrwTBCC56LovSl7oJqBeeU=",
+      "iterations": 200000
+    }
+  }
+}

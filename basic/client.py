@@ -1,6 +1,6 @@
-import socket
-import threading
+import socket, threading
 import protocol
+import time
 
 server = "127.0.0.1"
 puerto = 12345
@@ -8,6 +8,30 @@ puerto = 12345
 outbox = 666
 inbox = 999
 user = ""
+password = ""
+
+POLL_INTERVAL_SECONDS = 1
+def testLogin():
+    global server, inbox, user, password
+    ok = False
+    s = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(3.0)
+        s.connect((server, inbox))
+        loginMsg = "LOGIN:" + user + ":" + password
+        s.send(loginMsg.encode())
+        resp = s.recv(1024)
+        if resp and resp.decode().strip() == "OK":
+            ok = True
+    except Exception:
+        ok = False
+    try:
+        if s is not None:
+            s.close()
+    except Exception:
+        dummy = 0
+    return ok
 
 def inboxHandler(miSocket):
     print(f"Se ha conectado al inbox: {miSocket}")
@@ -38,95 +62,189 @@ def outboxHandler(miSocket):
     print("El cliente ha cerrado su conexion al outbox")
 
 def client999():
-    global server, inbox, user
-    conectado = False
-    try:
-        scliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        scliente.settimeout(10.0)
-        scliente.connect((server,inbox))
-        conectado = True
-    except ConnectionRefusedError as CRE:
-            print(f"Ha habido un error de conexion: {CRE}")
-    except Exception as E:
-        print(f"Ha habido un error: {E}")
+    global server, inbox, user, password
 
-    if conectado==True:
+    running = True
+    retrySeconds = 1
+
+    while running:
+        conectado = False
+        scliente = None
+
         try:
-            if user.strip() != "":
-                scliente.send(user.encode())
-                datos = scliente.recv(1024)
-                print(f"Respuesta: {datos.decode()}")
-        except ConnectionResetError as cE:
-            print(f"Ha habido un error: {cE}")
             scliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            scliente.settimeout(10.0)
             scliente.connect((server,inbox))
+            conectado = True
         except ConnectionRefusedError as CRE:
-            print(f"Ha habido un error de conexion: {CRE}")
+                print(f"[999] Servidor no disponible: {CRE}")
         except Exception as E:
-            print(f"Ha habido un error: {E}")
+            print(f"[999] Error conectando: {E}")
 
-        print(f"Conectado a {server}:{inbox} con {scliente}")
-        
-        scliente.settimeout(None)
-        buffer = b""
-        while conectado:
+        if conectado:
+            okLogin = False
             try:
-                datos = scliente.recv(1024)
-                if not datos:
-                    conectado = False
+                loginMsg = "LOGIN:" + user + ":" + password
+                scliente.send(loginMsg.encode())
+                resp = scliente.recv(1024)
+                if resp and resp.decode().strip() == "OK":
+                    okLogin = True
+                    print(f"[999] Login correcto")
                 else:
-                    buffer += datos
-                    lines, buffer = protocol.splitLines(buffer)
-                    for line in lines:
-                        print(line)
-            except ConnectionResetError as cE:
-                print(f"Ha habido un error: {cE}")
-                scliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                scliente.connect((server,inbox))
-            except ConnectionRefusedError as CRE:
-                print(f"Ha habido un error de conexion: {CRE}")
+                    conectado = False
+                    print("[999] Login KO")
             except Exception as E:
-                print(f"Ha habido un error: {E}")
+                print(f"[999] Error en login: {E}")
+
+            if not okLogin:
+                try:
+                    scliente.close()
+                except Exception:
+                    dummy = 0
+                conectado = False
+
+        if conectado:  
+            print(f"[999] Conectado a {server}:{inbox} con {scliente}")
+            
+            pollInterval = POLL_INTERVAL_SECONDS
+            lastPoll = time.time()
+
+            scliente.settimeout(0.2)
+            buffer = b""
+
+            while conectado:
+                now = time.time()
+                if now - lastPoll >= pollInterval:
+                    try:
+                        scliente.send("POLL\n".encode())
+                    except Exception as E:
+                        print(f"[999] Servidor caído (POLL): {E}")
+                        conectado = False
+                    lastPoll = now
+
+                if conectado:
+                    datos = None
+                    gotData = False  
+
+                    try:
+                        datos = scliente.recv(1024)
+                        gotData = True
+                    except socket.timeout:
+                        gotData = False
+                    except Exception as E:
+                        print(f"[999] Servidor caído (recv): {E}")
+                        conectado = False                 # gotData is False by default
+
+                    if conectado and gotData:
+                        if not datos:
+                            print(f"[999] Conexión cerrada por el servidor")
+                            conectado = False
+                        else:
+                            buffer += datos
+                            lines, buffer = protocol.splitLines(buffer)
+                            for line in lines:
+                                print(line)
+            
+            # Closing connection before retrying                    
+            try:
+                scliente.close()
+            except Exception:
+                dummy = 0
+
+        time.sleep(retrySeconds)
 
 
 def client666():
-    global server, outbox, user
-    conectado = False
-    try:
-        scliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        scliente.settimeout(10.0)
-        scliente.connect((server,outbox))
-        conectado = True
-    except ConnectionRefusedError as CRE:
-            print(f"Ha habido un error de conexion: {CRE}")
-    except Exception as E:
-        print(f"Ha habido un error: {E}")
+    global server, outbox, user, password
 
-    if conectado==True:
+    running = True
+    retrySeconds = 1
 
-        print(f"Conectado a {server}:{outbox} con {scliente}")
+    while running:
+        conectado = False
+        scliente = None
+        resp = None
+        try:
+            scliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            scliente.settimeout(10.0)
+            scliente.connect((server,outbox))
+            conectado = True
+        except ConnectionRefusedError as CRE:
+                print(f"[666] Servidor no disponible: {CRE}")
+        except Exception as E:
+            print(f"[666] Error conectando: {E}")
 
-        while conectado:
+        if conectado:
+            okLogin = False
             try:
+                loginMsg = "LOGIN:" + user + ":" + password
+                scliente.send(loginMsg.encode())
+                resp = scliente.recv(1024)
+                if resp and resp.decode().strip() == "OK":
+                    okLogin = True
+                    print(f"[666] Login correcto")
+                else:
+                    print("[666] Login KO")
+            except Exception as E:
+                print(f"[666] Error en login: {E}")
+
+            if not okLogin:
+                try:
+                    scliente.close()
+                except Exception:
+                    dummy = 0
+                conectado = False
+            
+        if conectado:  
+            print(f"[666] Conectado a {server}:{outbox} con {scliente}")
+            scliente.settimeout(10)
+
+            while conectado:                    
                 mensaje = input(f"{user}: Introduce tu mensaje (formato destinatario:mensaje): ")
                 mensaje = user + ":" + mensaje
                 if mensaje.strip() != "" and ":" in mensaje and mensaje.count(":")>=2:
-                    scliente.send(mensaje.encode())
-                    datos = scliente.recv(1024)
-                    print(f"Respuesta: {datos.decode()}")
-            except ConnectionResetError as cE:
-                print(f"Ha habido un error: {cE}")
-                scliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                scliente.connect((server,outbox))
-            except ConnectionRefusedError as CRE:
-                print(f"Ha habido un error de conexion: {CRE}")
-            except Exception as E:
-                print(f"Ha habido un error: {E}")
+                    try:
+                        scliente.send(mensaje.encode())
+                        resp = scliente.recv(1024)
+                        if not resp:
+                            print(f"[666] Conexión cerrada por el servidor")
+                            conectado = False
+                        else:
+                            print(f"Respuesta: {resp.decode()}")
+                    except Exception as E:
+                        print(f"[666] No se pudo enviar (servidor caído): {E}")
+                        conectado = False
+            try:
+                scliente.close()
+            except Exception:
+                dummy = 0
 
-tmp_user = input("User: @")
-if tmp_user is None:
-    tmp_user = ""
-user = tmp_user.strip()
+        time.sleep(retrySeconds)
+
+
+valid = False
+
+while not valid:
+    tmp_user = input("User: @")
+    if tmp_user is None:
+        tmp_user = ""
+    user = tmp_user.strip()
+
+    tmp_pass = input("Password: ")
+    if tmp_pass is None:
+        tmp_pass = ""
+    password = tmp_pass
+
+    if user.strip() == "" or password.strip() == "":
+        print("User o password no pueden estar vacíos, pruebe de nuevo")
+        time.sleep(0.5)
+    else:
+        if testLogin():
+            print("Credenciales correctas")
+            valid = True
+        else:
+            print("Credenciales incorrectas, pruebe de nuevo")
+            time.sleep(0.5)
 
 recvThread = threading.Thread(target=client999)
 sendThread = threading.Thread(target=client666)
