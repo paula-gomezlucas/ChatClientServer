@@ -1,0 +1,18 @@
+# Create a .gitignore file to exclude unnecessary files from python project
+
+# Ignore compiled Python files
+__pycache__/
+*.py[cod]
+*$py.class
+# Ignore virtual environment directories
+venv/
+env/
+.venv/
+# Ignore IDE specific files
+.vscode/
+.idea/
+.qodo/
+
+# Ignore reference files
+.reference/
+
