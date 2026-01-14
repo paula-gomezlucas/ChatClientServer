@@ -6,6 +6,8 @@ SERVER_HOST = "127.0.0.1"
 PORT_INBOUND = 666
 PORT_OUTBOUND = 999
 USERS_FILE = "users.json"
+DATA_DIR = "data"
+PENDING_FILE = os.path.join(DATA_DIR, "pending.json")
 
 threads = []
 userSockets = {}
@@ -56,6 +58,74 @@ def sendReplyAndMaybeClose(connection, text):
 
     return True
 
+def ensureDataDir():
+    ok = False
+    try:
+        if not os.path.exists(DATA_DIR):
+            os.mkdir(DATA_DIR)
+        ok = True
+    except Exception:
+        ok = False
+    return ok
+
+def savePendingToDisk():
+    global pendingMessages
+    ensureDataDir()
+
+    Acquired = False
+    while not Acquired:
+        if pendingMessagesSemaphore.acquire(timeout=1):
+            Acquired = True
+
+            data = None
+            try:
+                data = json.dumps(pendingMessages)
+            except Exception:
+                data = None
+
+            pendingMessagesSemaphore.release()
+
+            if data is not None:
+                f = None
+                try:
+                    f = open(PENDING_FILE, "w", encoding="utf-8")
+                    f.write(data)
+                except Exception:
+                    dummy = 0
+                if f is not None:
+                    try:
+                        f.close()
+                    except Exception:
+                        dummy2 = 0
+        else:
+            time.sleep(0.1)
+
+
+def loadPendingFromDisk():
+    global pendingMessages
+    ensureDataDir()
+
+    data = None
+    f = None
+    try:
+        if os.path.exists(PENDING_FILE):
+            f = open(PENDING_FILE, "r", encoding="utf-8")
+            data = f.read()
+    except Exception:
+        data = None
+    if f is not None:
+        try:
+            f.close()
+        except Exception:
+            dummy = 0
+
+    if data is not None:
+        try:
+            obj = json.loads(data)
+            if obj is not None:
+                pendingMessages = obj
+        except Exception:
+            dummy2 = 0
 
 def loadUsersDb():
     global usersDb
@@ -196,8 +266,8 @@ def inboundHandler(connection):
                                     fullMessage = protocol.makeMsgDeliver999(sender, receiver, ts, "ENTREGADO", time.time(), msg)
                                     userSocketsSemaphore.release()
                                     sentOk = sendReply(sreceiver, fullMessage)
-                                    # if not sentOk:
-                                    #     activo = False
+                                    if not sentOk:
+                                        savePendingToDisk()
                                 else:
                                     userSocketsSemaphore.release()
                                     print(f"El usuario {receiver} no está conectado, guardando mensaje")
@@ -205,13 +275,15 @@ def inboundHandler(connection):
                                     while not AcquiredMessages:
                                         if pendingMessagesSemaphore.acquire(timeout=1):
                                             AcquiredMessages = True
+                                            record = {"ts": ts, "body": msg, "estado": "RECIBIDO", "tsEstado": time.time()}
                                             if receiver in pendingMessages and sender in pendingMessages[receiver]:
-                                                pendingMessages[receiver][sender].append((ts, msg))
+                                                pendingMessages[receiver][sender].append(record)
                                             elif receiver in pendingMessages:
-                                                pendingMessages[receiver].update({sender: [ts, msg]})
+                                                pendingMessages[receiver].update({sender: [record]})
                                             else:
-                                                pendingMessages.update({receiver: {sender: [ts, msg]}})
+                                                pendingMessages.update({receiver: {sender: [record]}})
                                             pendingMessagesSemaphore.release()
+                                            savePendingToDisk()
                                         else:
                                             time.sleep(0.1)
                             else:
@@ -310,17 +382,31 @@ def outboundHandler(connection):
                                         msg = mensaje
                                         del pendingMessages[receiver]
                                     pendingMessagesSemaphore.release()
+                                    savePendingToDisk()
                                 else:
                                     time.sleep(0.1)
 
                             if msg:
+                                flat = []
                                 for sender in msg:
                                     msg_list = msg[sender]
-                                    for [ts, body] in msg_list:
-                                        fullMessage = protocol.makeMsgDeliver999(sender, receiver, ts, "ENTREGADO", time.time(), body)
-                                        sentOk = sendReply(connection, fullMessage)
-                                        if not sentOk:
-                                            activo = False
+                                    for record in msg_list:
+                                        flat.append((sender, record))
+                                
+                                flat.sort(key=lambda x: x[1].get("ts", 0.0))
+
+                                for entry in flat:
+                                    sender = entry[0]
+                                    record = entry[1]
+                                    ts = record.get("ts", 0.0)
+                                    body = record.get("body", "")
+                                    record["estado"] = "ENTREGADO"
+                                    record["tsEstado"] = time.time()
+
+                                    fullMessage = protocol.makeMsgDeliver999(sender, receiver, ts, record["estado"], record["tsEstado"], body)
+                                    sentOk = sendReply(connection, fullMessage)
+                                    if not sentOk:
+                                        activo = False
 
                     elif activo and not gotPoll:
                         dummy = 0
@@ -386,6 +472,8 @@ def listenOutbound():
 # def menu():
 #     global threads
 #     print()
+
+loadPendingFromDisk()
 
 inboxListener = threading.Thread(target=listenInbound)
 outboxListener = threading.Thread(target=listenOutbound)

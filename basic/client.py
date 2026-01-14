@@ -143,7 +143,11 @@ def client999():
                             buffer += datos
                             lines, buffer = protocol.splitLines(buffer)
                             for line in lines:
-                                print(line)
+                                ok, origen, destino, ts, estado, tsEstado, mensaje = protocol.parseDeliver999(line)
+                                if ok:
+                                    print(origen + ": " + mensaje)
+                                else:
+                                    print(line)
             
             # Closing connection before retrying                    
             try:

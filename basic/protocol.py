@@ -40,6 +40,30 @@ def makeMsgDeliver999(origen, destino, timestamp, estado, tsEstado, mensaje):
     msg = str(mensaje).replace('"', "'")
     return "MSG;" + origen + ";" + destino + ";" + ts + ";" + estado + ";" + tsE + ";\"" + msg + "\"\n"
 
+def parseDeliver999(line):
+    # MSG;origen;destino;timestamp;estado;tiempoEstado;"mensaje"
+    ok = False
+    origen = destino = estado = mensaje = None
+    ts = tsEstado = None
+
+    try:
+        parts = line.split(";", 6)
+        if len(parts) == 7 and parts[0] == "MSG":
+            origen = parts[1].strip()
+            destino = parts[2].strip()
+            ts = float(parts[3].strip())
+            estado = parts[4].strip()
+            tsEstado = float(parts[5].strip())
+            mraw = parts[6].strip()
+            if len(mraw) >= 2 and mraw[0] == "\"" and mraw[-1] == "\"":
+                mensaje = mraw[1:-1]
+                ok = True
+    except Exception:
+        ok = False
+
+    return ok, origen, destino, ts, estado, tsEstado, mensaje
+
+
 def splitLines(buffer_bytes):
     # Input: bytes buffer (may contain partial messages)
     # Output: (lines_list_as_str, remaining_buffer_bytes)
