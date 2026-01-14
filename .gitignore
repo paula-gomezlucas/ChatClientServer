@@ -13,6 +13,6 @@ env/
 .idea/
 .qodo/
 
-# Ignore reference files
-.reference/
+# Ignore files inside referece directory
+reference/*
 
