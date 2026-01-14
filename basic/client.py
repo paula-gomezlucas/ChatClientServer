@@ -201,10 +201,13 @@ def client666():
 
             while conectado:                    
                 mensaje = input(f"{user}: Introduce tu mensaje (formato destinatario:mensaje): ")
-                mensaje = user + ":" + mensaje
-                if mensaje.strip() != "" and ":" in mensaje and mensaje.count(":")>=2:
+
+                if mensaje.strip() != "" and ":" in mensaje:
+                    destino, msg = mensaje.split(":", 1)
+                    ts = time.time()
+                    payload = protocol.makeMsgSend666(user, destino, ts, msg)
                     try:
-                        scliente.send(mensaje.encode())
+                        scliente.send(payload.encode())
                         resp = scliente.recv(1024)
                         if not resp:
                             print(f"[666] Conexión cerrada por el servidor")

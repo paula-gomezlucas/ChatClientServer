@@ -1,19 +1,44 @@
 # protocol.py
+def makeMsgSend666(origen, destino, timestamp, mensaje):
+    origen = str(origen).strip()
+    destino = str(destino).strip()
+    ts = str(timestamp)
+    msg = str(mensaje).replace('"', "'")
+    return "MSG;" + origen + ";" + destino + ";" + ts + ";\"" + msg + "\""
 
-def makeSend666(sender, receiver, msg):
-    # sender:receiver:msg
-    sender = str(sender).strip()
-    receiver = str(receiver).strip()
-    msg = str(msg)
-    return sender + ":" + receiver + ":" + msg
 
+def parseMsgSend666(line):
+    # Expect: MSG;origen;destino;timestamp;"mensaje"
+    ok = False
+    origen = None
+    destino = None
+    ts = None
+    mensaje = None
 
-def makeDeliver999(sender, msg):
-    # sender:msg\n   (newline is IMPORTANT for framing)
-    sender = str(sender).strip()
-    msg = str(msg)
-    return sender + ":" + msg + "\n"
+    try:
+        parts = line.split(";", 4)
+        if len(parts) == 5 and parts[0] == "MSG":
+            origen = parts[1].strip()
+            destino = parts[2].strip()
+            ts = float(parts[3].strip())
 
+            mensajeRaw = parts[4].strip()
+            if len(mensajeRaw) >= 2 and mensajeRaw[0] == "\"" and mensajeRaw[-1] == "\"":
+                mensaje = mensajeRaw[1:-1]
+                ok = True
+    except Exception:
+        ok = False
+
+    return ok, origen, destino, ts, mensaje
+
+def makeMsgDeliver999(origen, destino, timestamp, estado, tsEstado, mensaje):
+    origen = str(origen).strip()
+    destino = str(destino).strip()
+    ts = str(timestamp)
+    estado = str(estado).strip()
+    tsE = str(tsEstado)
+    msg = str(mensaje).replace('"', "'")
+    return "MSG;" + origen + ";" + destino + ";" + ts + ";" + estado + ";" + tsE + ";\"" + msg + "\"\n"
 
 def splitLines(buffer_bytes):
     # Input: bytes buffer (may contain partial messages)

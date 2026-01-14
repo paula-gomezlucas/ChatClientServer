@@ -180,39 +180,44 @@ def inboundHandler(connection):
         else:
             message = datos.decode()
             try:
-                sender, receiver, msg = message.split(":", 2)
-                if authUser is None or sender != authUser:
+                ok, sender, receiver, ts, msg = protocol.parseMsgSend666(message)
+                if not ok:
                     activo = sendReplyAndMaybeClose(connection, "KO")
                 else:
-                    Acquired = False
-                    while not Acquired:
-                        if userSocketsSemaphore.acquire(timeout=1):
-                            Acquired = True
-                            if receiver in userSockets:
-                                sreceiver = userSockets[receiver]
-                                fullMessage = protocol.makeDeliver999(sender, msg)
-                                userSocketsSemaphore.release()
-                                sentOk = sendReply(sreceiver, fullMessage)
-                            else:
-                                userSocketsSemaphore.release()
-                                print(f"El usuario {receiver} no está conectado, guardando mensaje")
-                                AcquiredMessages = False
-                                while not AcquiredMessages:
-                                    if pendingMessagesSemaphore.acquire(timeout=1):
-                                        AcquiredMessages = True
-                                        if receiver in pendingMessages and sender in pendingMessages[receiver]:
-                                            pendingMessages[receiver][sender].append(msg)
-                                        elif receiver in pendingMessages:
-                                            pendingMessages[receiver].update({sender: [msg]})
+                    if authUser is None or sender != authUser:
+                        activo = sendReplyAndMaybeClose(connection, "KO")
+                    else:
+                        Acquired = False
+                        while not Acquired:
+                            if userSocketsSemaphore.acquire(timeout=1):
+                                Acquired = True
+                                if receiver in userSockets:
+                                    sreceiver = userSockets[receiver]
+                                    fullMessage = protocol.makeMsgDeliver999(sender, receiver, ts, "ENTREGADO", time.time(), msg)
+                                    userSocketsSemaphore.release()
+                                    sentOk = sendReply(sreceiver, fullMessage)
+                                    # if not sentOk:
+                                    #     activo = False
+                                else:
+                                    userSocketsSemaphore.release()
+                                    print(f"El usuario {receiver} no está conectado, guardando mensaje")
+                                    AcquiredMessages = False
+                                    while not AcquiredMessages:
+                                        if pendingMessagesSemaphore.acquire(timeout=1):
+                                            AcquiredMessages = True
+                                            if receiver in pendingMessages and sender in pendingMessages[receiver]:
+                                                pendingMessages[receiver][sender].append((ts, msg))
+                                            elif receiver in pendingMessages:
+                                                pendingMessages[receiver].update({sender: [ts, msg]})
+                                            else:
+                                                pendingMessages.update({receiver: {sender: [ts, msg]}})
+                                            pendingMessagesSemaphore.release()
                                         else:
-                                            pendingMessages.update({receiver: {sender: [msg]}})
-                                        pendingMessagesSemaphore.release()
-                                    else:
-                                        time.sleep(0.1)
-                        else:
-                            time.sleep(0.1)
-                    print(f"{connection}: Los datos recibidos son: {datos.decode()}")
-                    activo = sendReplyAndMaybeClose(connection, "OK")
+                                            time.sleep(0.1)
+                            else:
+                                time.sleep(0.1)
+                        print(f"{connection}: Los datos recibidos son: {datos.decode()}")
+                        activo = sendReplyAndMaybeClose(connection, "OK")
             except ValueError:
                 print(f"Mensaje mal formado: {message}")
                 activo = sendReplyAndMaybeClose(connection, "KO")
@@ -309,11 +314,13 @@ def outboundHandler(connection):
                                     time.sleep(0.1)
 
                             if msg:
-                                for k in msg:
-                                    msg_list = msg[k]
-                                    for m in msg_list:
-                                        fullMessage = protocol.makeDeliver999(k, m)
-                                        activo = sendReply(connection, fullMessage)
+                                for sender in msg:
+                                    msg_list = msg[sender]
+                                    for [ts, body] in msg_list:
+                                        fullMessage = protocol.makeMsgDeliver999(sender, receiver, ts, "ENTREGADO", time.time(), body)
+                                        sentOk = sendReply(connection, fullMessage)
+                                        if not sentOk:
+                                            activo = False
 
                     elif activo and not gotPoll:
                         dummy = 0
