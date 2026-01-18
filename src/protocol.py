@@ -1,4 +1,11 @@
 # protocol.py
+import time
+import json
+import os
+import threading
+
+readWriteLock = threading.Lock()
+
 def makeMsgSend666(origen, destino, timestamp, mensaje):
     origen = str(origen).strip()
     destino = str(destino).strip()
@@ -94,3 +101,77 @@ def splitLines(buffer_bytes):
             cleaned.append(line.strip())
 
     return cleaned, remaining
+
+def makeUpdate999(origen, destino, lastTs):
+    ts = str(time.time())
+    msg = ""
+    return "MSG;" + origen + ";" + destino + ";" + ts + ";UPDATE;" + str(lastTs) + ";\"\""
+
+
+def isUpdateRequest(line):
+    ok, origen, destino, ts, estado, tsEstado, mensaje = parseDeliver999(line)
+    if ok and estado == "UPDATE":
+        return True, origen, destino, tsEstado
+    return False, None, None, None
+
+def makeList999(user):
+    # LIST request always uses dest "@", ts=0
+    return "LST;" + str(user) + ";@;0\n"
+
+def isListRequest(line):
+    # Returns (isList, user)
+    ok = False
+    u = None
+    try:
+        parts = line.strip().split(";", 3)
+        if len(parts) >= 3:
+            if parts[0] == "LST":
+                u = parts[1].strip()
+                ok = True
+    except Exception:
+        ok = False
+        u = None
+    return ok, u
+
+def makeRead999(user, peer, readUpToTs):
+    # READ request: MSG;user;peer;0;READ;readUpToTs;""
+    return "MSG;" + str(user) + ";" + str(peer) + ";0;READ;" + str(readUpToTs) + ";\"\"\n"
+
+def isReadRequest(line):
+    ok, origen, destino, ts, estado, tsEstado, mensaje = parseDeliver999(line)
+    if ok and estado == "READ":
+        # origen = reader, destino = peer, tsEstado = readUpToTs
+        return True, origen, destino, tsEstado
+    return False, None, None, None
+
+
+def atomicWriteJson(path, obj):
+    tmp = path + ".tmp"
+    f = None
+    Acquired = False
+    while not Acquired:
+        if readWriteLock.acquire(timeout=5):
+            Acquired = True
+            try:
+                f = open(tmp, "w", encoding="utf-8")
+                f.write(json.dumps(obj, ensure_ascii=False, indent=2))
+                f.close()
+                f = None
+                os.replace(tmp, path)   # atómico en Windows y Linux
+                readWriteLock.release()
+                return True
+            except Exception:
+                try:
+                    if f is not None:
+                        f.close()
+                except Exception:
+                    dummy = 0
+                try:
+                    if os.path.exists(tmp):
+                        os.remove(tmp)
+                except Exception:
+                    dummy2 = 0
+                readWriteLock.release()
+                return False
+        else:
+            time.sleep(0.5)

@@ -1,0 +1,66 @@
+[
+  {
+    "ts": 1768760102.3829274,
+    "from": "paula",
+    "to": "lucia",
+    "body": "qué tal todo por cierto?",
+    "estado": "LEIDO",
+    "tsEstado": 1768760147.958432
+  },
+  {
+    "ts": 1768760152.5205271,
+    "from": "lucia",
+    "to": "paula",
+    "body": "bien la verdad",
+    "estado": "LEIDO",
+    "tsEstado": 1768767475.2977908
+  },
+  {
+    "ts": 1768760154.895894,
+    "from": "lucia",
+    "to": "paula",
+    "body": "tú?",
+    "estado": "LEIDO",
+    "tsEstado": 1768767475.2977934
+  },
+  {
+    "ts": 1768760163.104126,
+    "from": "paula",
+    "to": "lucia",
+    "body": "yo bien también",
+    "estado": "LEIDO",
+    "tsEstado": 1768760203.5359554
+  },
+  {
+    "ts": 1768760206.889469,
+    "from": "lucia",
+    "to": "paula",
+    "body": "nice",
+    "estado": "LEIDO",
+    "tsEstado": 1768767475.2977943
+  },
+  {
+    "ts": 1768760216.8501048,
+    "from": "lucia",
+    "to": "paula",
+    "body": "me vas contando",
+    "estado": "LEIDO",
+    "tsEstado": 1768767475.2977948
+  },
+  {
+    "ts": 1768760216.8501048,
+    "from": "lucia",
+    "to": "paula",
+    "body": "me vas contando",
+    "estado": "LEIDO",
+    "tsEstado": 1768767475.297795
+  },
+  {
+    "ts": 1768760154.895894,
+    "from": "lucia",
+    "to": "paula",
+    "body": "tú?",
+    "estado": "LEIDO",
+    "tsEstado": 1768767475.2977955
+  }
+]

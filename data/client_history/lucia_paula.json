@@ -1,0 +1,50 @@
+[
+  {
+    "from": "paula",
+    "to": "lucia",
+    "body": "qué tal todo por cierto?",
+    "ts": 1768760102.3829274,
+    "estado": "ENTREGADO",
+    "tsEstado": 1768760134.3370788
+  },
+  {
+    "from": "lucia",
+    "to": "paula",
+    "body": "bien la verdad",
+    "ts": 1768760152.5205271,
+    "estado": "LEIDO",
+    "tsEstado": 1768767532.4356956
+  },
+  {
+    "from": "lucia",
+    "to": "paula",
+    "body": "tú?",
+    "ts": 1768760154.895894,
+    "estado": "LEIDO",
+    "tsEstado": 1768767532.435698
+  },
+  {
+    "from": "paula",
+    "to": "lucia",
+    "body": "yo bien también",
+    "ts": 1768760163.104126,
+    "estado": "ENTREGADO",
+    "tsEstado": 1768760163.1062984
+  },
+  {
+    "from": "lucia",
+    "to": "paula",
+    "body": "nice",
+    "ts": 1768760206.889469,
+    "estado": "LEIDO",
+    "tsEstado": 1768767532.4356987
+  },
+  {
+    "from": "lucia",
+    "to": "paula",
+    "body": "me vas contando",
+    "ts": 1768760216.8501048,
+    "estado": "LEIDO",
+    "tsEstado": 1768767532.4356992
+  }
+]
